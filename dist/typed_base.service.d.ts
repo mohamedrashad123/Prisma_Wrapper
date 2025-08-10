@@ -51,7 +51,7 @@ export declare class TypedBaseService<Delegate extends {
     upsert<A extends Parameters<Delegate["upsert"]>[0]>(args: A): Promise<ReturnType<Delegate["upsert"]>>;
     aggregate<A extends Parameters<Delegate["aggregate"]>[0]>(args: A): Promise<ReturnType<Delegate["aggregate"]>>;
     groupBy<A extends Parameters<Delegate["groupBy"]>[0]>(args: A): Promise<ReturnType<Delegate["groupBy"]>>;
-    raw<T = any>(query: string): Promise<any>;
+    raw<T = any>(query: string): Promise<T>;
     findManyWithCache(whereOrOptions?: any, optionsOrArgs?: any, cacheKey?: string, cacheTtl?: number): Promise<unknown>;
 }
 export declare const createTypedBaseService: <Delegate extends {

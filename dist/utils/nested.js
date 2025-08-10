@@ -19,7 +19,7 @@ const buildNestedFields = (fields, key = "select") => {
         }
         else if (typeof f === "object") {
             for (const [rel, relFields] of Object.entries(f)) {
-                const nested = (0, exports.buildNestedFields)(relFields, key);
+                const nested = (0, exports.buildNestedFields)((relFields ?? []), key);
                 res[rel] = { [key]: nested ?? undefined };
             }
         }

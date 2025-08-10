@@ -114,7 +114,8 @@ class TypedBaseService {
         return this.delegate.groupBy(args);
     }
     async raw(query) {
-        return this.prisma.$queryRawUnsafe(query);
+        const result = await this.prisma.$queryRawUnsafe(query);
+        return result;
     }
     // convenience: call BaseService.findMany with caching support
     async findManyWithCache(whereOrOptions, optionsOrArgs, cacheKey, cacheTtl) {

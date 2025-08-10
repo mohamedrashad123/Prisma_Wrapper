@@ -123,7 +123,8 @@ class BaseService {
         return this.prisma.$transaction(async (tx) => fn(tx));
     }
     async raw(query) {
-        return this.prisma.$queryRawUnsafe(query);
+        const result = await this.prisma.$queryRawUnsafe(query);
+        return result;
     }
 }
 exports.BaseService = BaseService;

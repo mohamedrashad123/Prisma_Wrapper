@@ -33,5 +33,5 @@ export declare class BaseService {
     aggregate(args: any): Promise<any>;
     groupBy(args: any): Promise<any>;
     transaction<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<any>;
-    raw<T = any>(query: string): Promise<any>;
+    raw<T = any>(query: string): Promise<T>;
 }

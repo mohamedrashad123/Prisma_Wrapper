@@ -1,7 +1,7 @@
 // -------------------------
 // FILE: src/utils/nested.ts
 // -------------------------
-export type FieldInput = string | Record<string, any>;
+export type FieldInput<T> = keyof T | { [K in keyof T]?: FieldInput<T[K]> };
 
 /**
  * buildNestedFields transforms:
@@ -11,8 +11,12 @@ export type FieldInput = string | Record<string, any>;
  *
  * parameter key: "select" | "include"
  */
-export const buildNestedFields = (fields?: FieldInput[], key: "select" | "include" = "select") => {
+export const buildNestedFields = <T, K extends keyof T = keyof T>(
+  fields?: FieldInput<T>[],
+  key: "select" | "include" = "select"
+): Record<string, any> | undefined => {
   if (!fields || !fields.length) return undefined;
+
   const res: Record<string, any> = {};
 
   for (const f of fields) {
@@ -20,7 +24,10 @@ export const buildNestedFields = (fields?: FieldInput[], key: "select" | "includ
       res[f] = true;
     } else if (typeof f === "object") {
       for (const [rel, relFields] of Object.entries(f)) {
-        const nested = buildNestedFields(relFields as FieldInput[], key);
+        const nested = buildNestedFields(
+          (relFields ?? []) as FieldInput<any>[],
+          key
+        );
         res[rel] = { [key]: nested ?? undefined };
       }
     }
