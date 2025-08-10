@@ -9,14 +9,35 @@ export type Pagination =
 
 export type SearchOptions = { term: string; fields: string[] };
 
+type PrimitiveFieldKeys<T> = {
+  [K in keyof T]: T[K] extends object ? never : K
+}[keyof T];
+
+type NestedFieldKeys<T> = {
+  [K in keyof T]: T[K] extends object ? K : never
+}[keyof T];
+
+export type SelectShorthand<T> =
+  | Array<
+      | PrimitiveFieldKeys<T>
+      | { [K in NestedFieldKeys<T>]: SelectShorthand<T[K]> }
+    >;
+
+export type IncludeShorthand<T> =
+  | Array<
+      | keyof T
+      | { [K in keyof T]: IncludeShorthand<any> }
+    >;
+
+
 // QueryOptions مرتبطة بالموديل (TModel) علشان تاخد Type Safety كامل
 export type QueryOptions<
   TWhere,
   TSelect,
   TInclude
 > = {
-  selectFields?: Array<string | Record<string, any>> & TSelect;
-  includeFields?: Array<string | Record<string, any>> & TInclude;
+  selectFields?: SelectShorthand<TSelect>;
+  includeFields?: IncludeShorthand<TInclude>;
   filters?: TWhere;
   pagination?: Pagination;
   orderBy?: OrderBy;

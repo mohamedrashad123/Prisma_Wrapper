@@ -137,6 +137,7 @@ export class BaseService {
   }
 
   async raw<T = any>(query: string) {
-    return this.prisma.$queryRawUnsafe<T>(query);
+    const result = await this.prisma.$queryRawUnsafe(query);
+    return result as unknown as T;
   }
 }

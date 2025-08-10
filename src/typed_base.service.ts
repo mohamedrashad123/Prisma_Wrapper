@@ -173,7 +173,8 @@ export class TypedBaseService<Delegate extends { [k: string]: any }, TWhere, TSe
   }
 
   async raw<T = any>(query: string) {
-    return this.prisma.$queryRawUnsafe<T>(query);
+    const result = await this.prisma.$queryRawUnsafe(query);
+    return result as unknown as T;
   }
 
   // convenience: call BaseService.findMany with caching support
