@@ -133,7 +133,7 @@ export class BaseService {
   }
 
   async transaction<T>(fn: (tx: PrismaClient) => Promise<T>) {
-    return this.prisma.$transaction(async (tx) => fn(tx));
+    return this.prisma.$transaction(async (tx: PrismaClient) => fn(tx));
   }
 
   async raw<T = any>(query: string) {
