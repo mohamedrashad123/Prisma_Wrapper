@@ -21,48 +21,132 @@ export class TypedBaseService<Delegate extends { [k: string]: any }, TWhere, TSe
   protected prisma: PrismaClient;
   protected delegate: Delegate;
   protected base: BaseService;
+  protected options?: { cache?: CacheAdapter; ttlSec?: number; softDeleteField?: string | null };
 
-  constructor(prisma: PrismaClient, delegate: Delegate, opts?: { cache?: CacheAdapter; softDeleteField?: string | null }) {
+  constructor(prisma: PrismaClient, delegate: Delegate, opts?: { cache?: CacheAdapter; ttlSec?: number, softDeleteField?: string | null }) {
     this.prisma = prisma;
     this.delegate = delegate;
     this.base = new BaseService(prisma, delegate, { cache: opts?.cache, softDeleteField: opts?.softDeleteField ?? "deletedAt" });
+    this.options = opts;
   }
 
   // Helper: if user passed QueryOptions, return Prisma args typed as A
   private buildFromQueryOptions<A>(opts?: QueryOptions<TWhere, TSelect, TInclude>): A | undefined {
     if (!opts) return undefined;
     const built = buildPrismaArgsFromQueryOptions(opts);
+
+    if ((opts as any).selectFields && (built as any).select) {
+      (built as any).select = {
+        ...(built as any).select,
+        ...(buildPrismaArgsFromQueryOptions({
+          selectFields: (opts as any).selectFields,
+        }) as any).select,
+      };
+    }
+
     return built as unknown as A;
   }
 
-  // findUnique overloads: native Prisma args OR QueryOptions (with baseWhere)
-  async findUnique<A extends Parameters<Delegate["findUnique"]>[0]>(args?: A | (QueryOptions<TWhere, TSelect, TInclude> & { baseWhere?: any })) {
-    if (args && (args as any).filters || (args as any).selectFields || (args as any).includeFields) {
-      // treat as shorthand
-      const qo = args as any as QueryOptions<TWhere, TSelect, TInclude> & { baseWhere?: any };
-      const built = buildPrismaArgsFromQueryOptions(qo);
-      if (qo.baseWhere) built.where = { ...(built.where || {}), ...qo.baseWhere };
-      return (this.delegate.findUnique as any)(built) as ReturnType<Delegate["findUnique"]>;
-    }
-    // native prisma args
-    return (this.delegate.findUnique as any)(args) as ReturnType<Delegate["findUnique"]>;
+  private getCacheKey(method: string, args: any): string {
+    return `${method}:${JSON.stringify(args)}`;
   }
 
-  async findMany<A extends Parameters<Delegate["findMany"]>[0]>(args?: A | QueryOptions<TWhere, TSelect, TInclude>) {
-    if (args && (args as any).filters || (args as any).selectFields || (args as any).includeFields) {
-      const built = this.buildFromQueryOptions<A>(args as QueryOptions<TWhere, TSelect, TInclude>);
-      return (this.delegate.findMany as any)(built) as ReturnType<Delegate["findMany"]>;
+  private async withCache<R>(
+    method: string,
+    args: any,
+    fn: () => Promise<R>,
+    opts?: { ttlSec?: number; forceRefresh?: boolean }
+  ): Promise<R> {
+    if (!this.options?.cache) return fn();
+
+    const key = this.getCacheKey(method, args);
+
+    if (!opts?.forceRefresh) {
+      const cached = await this.options.cache.get<R>(key);
+      if (cached) return cached;
     }
-    return (this.delegate.findMany as any)(args) as ReturnType<Delegate["findMany"]>;
+
+    const result = await fn();
+    await this.options.cache.set(key, result, opts?.ttlSec ?? this.options.ttlSec);
+    return result;
   }
 
-  async findFirst<A extends Parameters<Delegate["findFirst"]>[0]>(args?: A | QueryOptions<TWhere, TSelect, TInclude>) {
-    if (args && (args as any).filters || (args as any).selectFields || (args as any).includeFields) {
-      const built = this.buildFromQueryOptions<A>(args as QueryOptions<TWhere, TSelect, TInclude>);
-      return (this.delegate.findFirst as any)(built) as ReturnType<Delegate["findFirst"]>;
-    }
-    return (this.delegate.findFirst as any)(args) as ReturnType<Delegate["findFirst"]>;
+  async findUnique<A extends Parameters<Delegate["findUnique"]>[0]>(
+    args?: A | (QueryOptions<TWhere, TSelect, TInclude> & { baseWhere?: any }),
+    opts?: { ttlSec?: number; forceRefresh?: boolean }
+  ) {
+    const isShorthand =
+      args &&
+      ((args as any).filters ||
+        (args as any).selectFields ||
+        (args as any).includeFields);
+
+    const finalArgs = isShorthand
+      ? (() => {
+        const qo = args as QueryOptions<TWhere, TSelect, TInclude> & { baseWhere?: any };
+        const built = buildPrismaArgsFromQueryOptions(qo);
+
+        if (qo.baseWhere) {
+          built.where = { ...(built.where || {}), ...qo.baseWhere };
+        }
+
+        if (qo.selectFields && (built as any).select) {
+          (built as any).select = {
+            ...(built as any).select,
+            ...(buildPrismaArgsFromQueryOptions({ selectFields: qo.selectFields }) as any).select,
+          };
+        }
+
+        return built;
+      })()
+      : args;
+
+    return this.withCache("findUnique", finalArgs, () =>
+      (this.delegate.findUnique as any)(finalArgs),
+      opts
+    );
   }
+
+  async findMany<A extends Parameters<Delegate["findMany"]>[0]>(
+    args?: A | QueryOptions<TWhere, TSelect, TInclude>,
+    opts?: { ttlSec?: number; forceRefresh?: boolean }
+  ) {
+    const isShorthand =
+      args &&
+      ((args as any).filters ||
+        (args as any).selectFields ||
+        (args as any).includeFields);
+
+    const finalArgs = isShorthand
+      ? this.buildFromQueryOptions<A>(args as QueryOptions<TWhere, TSelect, TInclude>)
+      : args;
+
+    return this.withCache("findMany", finalArgs, () =>
+      (this.delegate.findMany as any)(finalArgs),
+      opts
+    );
+  }
+
+  async findFirst<A extends Parameters<Delegate["findFirst"]>[0]>(
+    args?: A | QueryOptions<TWhere, TSelect, TInclude>,
+    opts?: { ttlSec?: number; forceRefresh?: boolean }
+  ) {
+    const isShorthand =
+      args &&
+      ((args as any).filters ||
+        (args as any).selectFields ||
+        (args as any).includeFields);
+
+    const finalArgs = isShorthand
+      ? this.buildFromQueryOptions<A>(args as QueryOptions<TWhere, TSelect, TInclude>)
+      : args;
+
+    return this.withCache("findFirst", finalArgs, () =>
+      (this.delegate.findFirst as any)(finalArgs),
+      opts
+    );
+  }
+
 
   async create<A extends Parameters<Delegate["create"]>[0]>(args: A) {
     return (this.delegate.create as any)(args) as ReturnType<Delegate["create"]>;
