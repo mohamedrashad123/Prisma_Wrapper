@@ -10,32 +10,46 @@ export type Pagination =
 export type SearchOptions = { term: string; fields: string[] };
 
 type PrimitiveFieldKeys<T> = {
-  [K in keyof T]: T[K] extends object ? never : K
+  [K in keyof T]: T[K] extends object ? never : K;
 }[keyof T];
 
 type NestedFieldKeys<T> = {
-  [K in keyof T]: T[K] extends object ? K : never
+  [K in keyof T]: T[K] extends object ? K : never;
 }[keyof T];
 
+type RelationArgs<T> = {
+  select?: SelectShorthand<T>;
+  include?: IncludeShorthand<T>;
+  where?: Partial<T>;
+  orderBy?: any;
+  skip?: number;
+  take?: number;
+};
+
 export type SelectShorthand<T> =
+  | PrimitiveFieldKeys<T>
+  | {
+      [K in NestedFieldKeys<T> | PrimitiveFieldKeys<T>]?:
+        | SelectShorthand<T[K]>
+        | RelationArgs<T[K]>;
+    }
   | Array<
       | PrimitiveFieldKeys<T>
-      | { [K in NestedFieldKeys<T>]: SelectShorthand<T[K]> }
+      | {
+          [K in NestedFieldKeys<T> | PrimitiveFieldKeys<T>]?:
+            | SelectShorthand<T[K]>
+            | RelationArgs<T[K]>;
+        }
     >;
 
 export type IncludeShorthand<T> =
+  | keyof T
+  | { [K in keyof T]?: IncludeShorthand<any> | RelationArgs<any> }
   | Array<
-      | keyof T
-      | { [K in keyof T]: IncludeShorthand<any> }
+      keyof T | { [K in keyof T]?: IncludeShorthand<any> | RelationArgs<any> }
     >;
 
-
-// QueryOptions مرتبطة بالموديل (TModel) علشان تاخد Type Safety كامل
-export type QueryOptions<
-  TWhere,
-  TSelect,
-  TInclude
-> = {
+export type QueryOptions<TWhere, TSelect, TInclude> = {
   selectFields?: SelectShorthand<TSelect>;
   includeFields?: IncludeShorthand<TInclude>;
   filters?: TWhere;

@@ -1,6 +1,4 @@
-export type FieldInput<T> = keyof T | {
-    [K in keyof T]?: FieldInput<T[K]>;
-};
+import { IncludeShorthand, SelectShorthand } from "../types";
 /**
  * buildNestedFields transforms:
  * ["id", "name", { profile: ["id", "bio"] }]
@@ -9,4 +7,4 @@ export type FieldInput<T> = keyof T | {
  *
  * parameter key: "select" | "include"
  */
-export declare const buildNestedFields: <T, K extends keyof T = keyof T>(fields?: FieldInput<T>[], key?: "select" | "include") => Record<string, any> | undefined;
+export declare const buildNestedFields: <T>(fields?: SelectShorthand<T> | IncludeShorthand<T>, key?: "select" | "include") => Record<string, any> | undefined;

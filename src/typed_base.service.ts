@@ -35,16 +35,40 @@ export class TypedBaseService<Delegate extends { [k: string]: any }, TWhere, TSe
     if (!opts) return undefined;
     const built = buildPrismaArgsFromQueryOptions(opts);
 
-    if ((opts as any).selectFields && (built as any).select) {
-      (built as any).select = {
-        ...(built as any).select,
-        ...(buildPrismaArgsFromQueryOptions({
-          selectFields: (opts as any).selectFields,
-        }) as any).select,
-      };
+    if (opts.selectFields) {
+      const extraSelect = buildPrismaArgsFromQueryOptions({
+        selectFields: opts.selectFields,
+      }).select;
+
+      if (extraSelect) {
+        built.select = {
+          ...(built.select || {}),
+          ...extraSelect,
+        };
+      }
     }
 
-    return built as unknown as A;
+    if (opts.includeFields) {
+      const extraInclude = buildPrismaArgsFromQueryOptions({
+        includeFields: opts.includeFields,
+      }).include;
+
+      if (extraInclude) {
+        built.include = {
+          ...(built.include || {}),
+          ...extraInclude,
+        };
+      }
+    }
+    
+    if (built.where?.OR) {
+        built.where.OR = built.where.OR.map((cond: any) => {
+          const field = Object.keys(cond)[0];
+          return { [field]: { contains: cond[field].contains } };
+        });
+      }
+
+      return built as A;
   }
 
   private getCacheKey(method: string, args: any): string {

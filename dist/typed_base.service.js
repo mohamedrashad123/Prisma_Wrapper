@@ -26,13 +26,33 @@ class TypedBaseService {
         if (!opts)
             return undefined;
         const built = (0, query_builder_1.buildPrismaArgsFromQueryOptions)(opts);
-        if (opts.selectFields && built.select) {
-            built.select = {
-                ...built.select,
-                ...(0, query_builder_1.buildPrismaArgsFromQueryOptions)({
-                    selectFields: opts.selectFields,
-                }).select,
-            };
+        if (opts.selectFields) {
+            const extraSelect = (0, query_builder_1.buildPrismaArgsFromQueryOptions)({
+                selectFields: opts.selectFields,
+            }).select;
+            if (extraSelect) {
+                built.select = {
+                    ...(built.select || {}),
+                    ...extraSelect,
+                };
+            }
+        }
+        if (opts.includeFields) {
+            const extraInclude = (0, query_builder_1.buildPrismaArgsFromQueryOptions)({
+                includeFields: opts.includeFields,
+            }).include;
+            if (extraInclude) {
+                built.include = {
+                    ...(built.include || {}),
+                    ...extraInclude,
+                };
+            }
+        }
+        if (built.where?.OR) {
+            built.where.OR = built.where.OR.map((cond) => {
+                const field = Object.keys(cond)[0];
+                return { [field]: { contains: cond[field].contains } };
+            });
         }
         return built;
     }

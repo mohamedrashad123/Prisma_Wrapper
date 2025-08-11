@@ -16,11 +16,23 @@ type PrimitiveFieldKeys<T> = {
 type NestedFieldKeys<T> = {
     [K in keyof T]: T[K] extends object ? K : never;
 }[keyof T];
-export type SelectShorthand<T> = Array<PrimitiveFieldKeys<T> | {
-    [K in NestedFieldKeys<T>]: SelectShorthand<T[K]>;
+type RelationArgs<T> = {
+    select?: SelectShorthand<T>;
+    include?: IncludeShorthand<T>;
+    where?: Partial<T>;
+    orderBy?: any;
+    skip?: number;
+    take?: number;
+};
+export type SelectShorthand<T> = PrimitiveFieldKeys<T> | {
+    [K in NestedFieldKeys<T> | PrimitiveFieldKeys<T>]?: SelectShorthand<T[K]> | RelationArgs<T[K]>;
+} | Array<PrimitiveFieldKeys<T> | {
+    [K in NestedFieldKeys<T> | PrimitiveFieldKeys<T>]?: SelectShorthand<T[K]> | RelationArgs<T[K]>;
 }>;
-export type IncludeShorthand<T> = Array<keyof T | {
-    [K in keyof T]: IncludeShorthand<any>;
+export type IncludeShorthand<T> = keyof T | {
+    [K in keyof T]?: IncludeShorthand<any> | RelationArgs<any>;
+} | Array<keyof T | {
+    [K in keyof T]?: IncludeShorthand<any> | RelationArgs<any>;
 }>;
 export type QueryOptions<TWhere, TSelect, TInclude> = {
     selectFields?: SelectShorthand<TSelect>;
